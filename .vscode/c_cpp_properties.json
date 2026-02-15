@@ -10,7 +10,9 @@
 			"${vex_sdkPath}/gcc/include",
 			"${vex_sdkPath}/include/**",
 			"${workspaceFolder}/include/**",
-			"${workspaceFolder}/src/**"
+			"${workspaceFolder}/src/**",
+			"${workspaceFolder}/custom/include/**",
+			"${workspaceFolder}/custom/src/**"
 		]
 	},
 	"configurations": [

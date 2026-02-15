@@ -66,10 +66,10 @@ double expoCurve(double input, double deadband = 3, double minOutput = 10, doubl
 bool intake_toggle_forward = false;
 bool intake_toggle_reverse = false;
 bool r1_last = false;
-bool r2_last = false;
+bool a_last = false;
 
 // Outtake toggle state
-bool outtake_toggle_forward = false;
+bool l1_combo_active = false;
 bool l1_last = false;
 bool midscoring_mode = false;
 bool x_last = false;
@@ -86,29 +86,42 @@ bool l2_last = false;
 
 /*
  * updateIntake
- * Toggle-based intake control using R1 (reverse) and R2 (forward).
- * Pressing R1 toggles reverse spin; pressing R2 toggles forward spin.
- * If mid-scoring mode is active (isBlocked=true), intake is controlled by outtake logic instead.
+ * Toggle-based intake control using R1 (forward) and A (reverse).
+ * Pressing R1 toggles forward spin; pressing A toggles reverse spin.
+ * R1/A will cancel L1 combo mode if active.
+ * Intake is blocked during mid-scoring or L1 combo (controlled elsewhere).
  */
-void updateIntake(bool isBlocked) {
+void updateIntake() {
   bool r1_current = controller_1.ButtonR1.pressing();
-  bool r2_current = controller_1.ButtonR2.pressing();
+  bool a_current = controller_1.ButtonA.pressing();
 
-  // Detect rising edge for toggles
-  if (r1_current && !r1_last) {
-    intake_toggle_reverse = !intake_toggle_reverse;
-    if (intake_toggle_reverse) intake_toggle_forward = false;
-  }
-  if (r2_current && !r2_last) {
-    intake_toggle_forward = !intake_toggle_forward;
-    if (intake_toggle_forward) intake_toggle_reverse = false;
+  // Detect rising edge for toggles (ignored during mid-scoring)
+  if (!midscoring_mode) {
+    if (r1_current && !r1_last) {
+      // Cancel L1 combo if active (R1 takes priority)
+      if (l1_combo_active) {
+        l1_combo_active = false;
+        outtake_motor.stop(hold);
+      }
+      intake_toggle_forward = !intake_toggle_forward;
+      if (intake_toggle_forward) intake_toggle_reverse = false;
+    }
+    if (a_current && !a_last) {
+      // Cancel L1 combo if active (A takes priority)
+      if (l1_combo_active) {
+        l1_combo_active = false;
+        outtake_motor.stop(hold);
+      }
+      intake_toggle_reverse = !intake_toggle_reverse;
+      if (intake_toggle_reverse) intake_toggle_forward = false;
+    }
   }
 
   r1_last = r1_current;
-  r2_last = r2_current;
+  a_last = a_current;
 
-  // Only control intake here if NOT blocked by mid-scoring
-  if (!isBlocked) {
+  // Only control intake here if NOT blocked by mid-scoring or L1 combo
+  if (!midscoring_mode && !l1_combo_active) {
     if (intake_toggle_forward) {
       intake_motor.spin(fwd, 12, volt);
     } else if (intake_toggle_reverse) {
@@ -121,7 +134,8 @@ void updateIntake(bool isBlocked) {
 
 /*
  * updateOuttake
- * L1 toggles outtake forward. X toggles mid-scoring mode.
+ * L1 toggles combo mode (intake forward + outtake reverse). X toggles mid-scoring.
+ * L1 combo overrides R1/A intake; R1/A cancel L1 combo. Mid-scoring blocks L1.
  * Mid-scoring mode: retracts piston, runs unjam sequence (brief reverse), 
  * then runs intake forward + outtake reverse for scoring.
  */
@@ -145,7 +159,7 @@ void updateOuttake() {
 
     if (midscoring_mode) {
       // ENTERING mid-scoring mode
-      outtake_toggle_forward = false;
+      l1_combo_active = false;
       midscoring_piston.set(true);  // Retract piston
       is_unjamming = true;
       unjam_start_time = Brain.Timer.value() * 1000.0;
@@ -155,7 +169,7 @@ void updateOuttake() {
       is_unjamming = false;
       intake_motor.stop(hold);
       outtake_motor.stop(hold);
-      outtake_toggle_forward = false;
+      l1_combo_active = false;
       x_last = x_current;
       return;
     }
@@ -167,19 +181,25 @@ void updateOuttake() {
   if (midscoring_mode && !is_unjamming) {
     // Mid-scoring: intake forward, outtake reverse at reduced speed
     intake_motor.spin(reverse, 12, volt);
-    outtake_voltage = -9; // ~75% reverse (was -450/600 in PROS)
+    outtake_voltage = -12; // Full reverse speed
     // Update L1 state to prevent "stored" presses
     l1_last = controller_1.ButtonL1.pressing();
   } else if (!midscoring_mode) {
-    // Normal mode: L1 toggles outtake forward
+    // Normal mode: L1 toggles combo (intake forward + outtake reverse)
     bool l1_current = controller_1.ButtonL1.pressing();
     if (l1_current && !l1_last) {
-      outtake_toggle_forward = !outtake_toggle_forward;
+      l1_combo_active = !l1_combo_active;
+      if (l1_combo_active) {
+        // Clear intake toggles so they don't resume after combo ends
+        intake_toggle_forward = false;
+        intake_toggle_reverse = false;
+      }
     }
     l1_last = l1_current;
 
-    if (outtake_toggle_forward) {
-      outtake_voltage = 12;
+    if (l1_combo_active) {
+      intake_motor.spin(fwd, 12, volt);   // Intake forward
+      outtake_voltage = -12;               // Outtake reverse (full speed)
     }
   }
 
@@ -192,13 +212,13 @@ void updateOuttake() {
 
 /*
  * updatePneumatics
- * A button: hold to retract Descore, release to extend (starts UP/extended)
+ * R2 button: hold to retract Descore, release to extend (starts UP/extended)
  * L2 button: toggle Unloader on/off
  */
 void updatePneumatics() {
-  // Descore (Button A) — hold to retract, release to extend
-  bool a_current = controller_1.ButtonA.pressing();
-  descore_piston.set(!a_current);
+  // Descore (Button R2) — hold to retract, release to extend
+  bool r2_current = controller_1.ButtonR2.pressing();
+  descore_piston.set(!r2_current);
 
   // Unloader (Button L2) — toggle
   bool l2_current = controller_1.ButtonL2.pressing();
@@ -233,7 +253,7 @@ void runDriver() {
 
     // Update subsystems
     updateOuttake();  // Must run before intake (controls mid-scoring blocking)
-    updateIntake(midscoring_mode);
+    updateIntake();
     updatePneumatics();
 
     wait(20, msec); 
