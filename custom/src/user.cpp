@@ -36,7 +36,7 @@ void runAutonomous() {
 }
 
 // ============================================================================
-// EXPO DRIVE CURVE (ported from LemLib)
+// EXPO DRIVE CURVE (Ported from LemLib)
 // Matches: lemlib::ExpoDriveCurve(3, 10, 1.05)
 // Parameters: deadband=3, minOutput=10, curve=1.05
 // ============================================================================
