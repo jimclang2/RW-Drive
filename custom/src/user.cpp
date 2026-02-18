@@ -1,5 +1,6 @@
 #include "vex.h"
 #include "motor-control.h"
+#include "curves.h"
 #include "../custom/include/autonomous.h"
 #include "../custom/include/robot-config.h"
 #include <cmath>
@@ -35,25 +36,7 @@ void runAutonomous() {
   }
 }
 
-// ============================================================================
-// EXPO DRIVE CURVE
-// Parameters: deadband=3, minOutput=10, curve=1.05
-// Higher curve = more expo (slower at low stick, snappier at high stick)
-// ============================================================================
-double expoCurve(double input, double deadband = 3, double minOutput = 10, double curve = 1.05) {
-  // If input is within deadband, return 0
-  if (fabs(input) <= deadband) return 0;
 
-  double sign = (input > 0) ? 1.0 : -1.0;
-  double output = exp(curve * (fabs(input) - 127.0) / 127.0) * sign * 127.0;
-
-  // Apply minimum output (ensure motors actually move when joystick is past deadband)
-  if (fabs(output) < minOutput) {
-    output = minOutput * sign;
-  }
-
-  return output;
-}
 
 // ============================================================================
 // SUBSYSTEM STATE VARIABLES
@@ -241,10 +224,9 @@ void runDriver() {
     ch3 = controller_1.Axis3.value(); // Left stick Y
     ch2 = controller_1.Axis2.value(); // Right stick Y
 
-    // Apply expo curve (matches LemLib ExpoDriveCurve(3, 10, 1.05))
-    // Then scale to voltage range for driveChassis (which takes volts)
-    double left_drive = expoCurve(ch3) * 0.12;  // Scale [-127,127] range to ~[-12,12] volts
-    double right_drive = expoCurve(ch2) * 0.12;
+    // Apply drive curve, then scale to voltage range for driveChassis
+    double left_drive = applyCurve(ch3) * 0.12;  // Scale [-127,127] range to ~[-12,12] volts
+    double right_drive = applyCurve(ch2) * 0.12;
     
     driveChassis(left_drive, right_drive);
 
