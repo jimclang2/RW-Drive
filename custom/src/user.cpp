@@ -36,25 +36,22 @@ void runAutonomous() {
 }
 
 // ============================================================================
-// EXPO DRIVE CURVE (Ported from LemLib)
-// Matches: lemlib::ExpoDriveCurve(3, 10, 1.05)
+// EXPO DRIVE CURVE
 // Parameters: deadband=3, minOutput=10, curve=1.05
+// Higher curve = more expo (slower at low stick, snappier at high stick)
 // ============================================================================
 double expoCurve(double input, double deadband = 3, double minOutput = 10, double curve = 1.05) {
   // If input is within deadband, return 0
   if (fabs(input) <= deadband) return 0;
-  
-  // LemLib expo curve formula
-  double output = (exp(-deadband / 10.0) + exp((fabs(input) - 127.0) / 10.0) * (1 - exp(-deadband / 10.0))) * input;
-  
-  // Apply curve factor
-  output *= curve;
-  
+
+  double sign = (input > 0) ? 1.0 : -1.0;
+  double output = exp(curve * (fabs(input) - 127.0) / 127.0) * sign * 127.0;
+
   // Apply minimum output (ensure motors actually move when joystick is past deadband)
-  if (fabs(output) < minOutput && fabs(input) > deadband) {
-    output = minOutput * (input > 0 ? 1 : -1);
+  if (fabs(output) < minOutput) {
+    output = minOutput * sign;
   }
-  
+
   return output;
 }
 
