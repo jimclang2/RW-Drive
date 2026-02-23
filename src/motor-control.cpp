@@ -1275,43 +1275,47 @@ void boomerang(double x, double y, int dir, double a, double dlead, double time_
 }
 
 // ============================================================================
-// DISTANCE SENSOR POSITION RESET FUNCTIONS
+// DISTANCE SENSOR POSITION RESET FUNCTIONS (Modified for RW-Template)
+// Changes from original:
+//   - resetPositionWithDualBackSensors: new function that resets Y + heading
+//     using two back sensors with atan2 heading math + cosine distance correction
+//   - driveUntilDistance: drives robot until sensor reads below threshold
+//   - All original single-sensor functions preserved unchanged
 // ============================================================================
 
 /*
  * resetPositionWithSensor
  * Resets position using a distance sensor based on which wall the robot is facing.
  * Only resets X or Y position (not both) based on the wall being measured.
- * 
+ *
  * - sensor: Distance sensor to use
  * - sensor_offset: Distance offset of the sensor from robot center (in inches)
  * - sensor_angle_offset: Angle offset for the sensor direction (0° = front, 90° = right, 180° = back, 270° = left)
  * - field_half_size: Half the field dimension (distance from center to wall, in inches)
-
- ** - IMPORTANT NOTE FOR THE USER - **
+ * - IMPORTANT NOTE FOR THE USER -
  * - DO NOT CALL THIS FUNCTION DIRECTLY, use the specific direction functions below instead.
  */
 void resetPositionWithSensor(vex::distance& sensor, double sensor_offset, double sensor_angle_offset, double field_half_size) {
     double sensorReading = sensor.objectDistance(inches);
-  
+
     // Check for invalid reading (distance sensors return -1 or very large values when no object detected)
     if (sensorReading < 0 || sensorReading > 200) {
         Brain.Screen.print("Invalid distance sensor reading: %.2f", sensorReading);
         return;
     }
-    
+
     // Get current pose
     double current_heading_deg = getInertialHeading();
     double robot_heading_deg = current_heading_deg + sensor_angle_offset;
-    
+
     // Normalize heading to 0-360 range
     int headingDeg = (int)(robot_heading_deg);
     headingDeg = (headingDeg + 360) % 360;
-    
+
     // Determine which wall we're facing and which axis to reset
     bool resettingX = false;
     double wallSign = 1.0;
-    
+
     if (315 <= headingDeg || headingDeg <= 45) {
         // Top wall - reset Y position
         resettingX = false;
@@ -1332,30 +1336,117 @@ void resetPositionWithSensor(vex::distance& sensor, double sensor_offset, double
         resettingX = true;
         wallSign = -1.0;
     }
-    
+
     // Calculate distance from wall to robot center
     double wallToCenter = sensorReading + sensor_offset;
-    
+
     // Calculate actual position
     double actualPos = wallSign * (field_half_size - wallToCenter);
-    
+
     // Update position (only reset the appropriate axis)
     if (resettingX) {
         x_pos = actualPos;
-
     } else {
         y_pos = actualPos;
-
     }
+}
+
+/*
+ * resetPositionWithDualBackSensors
+ * Resets Y position AND heading using two back-mounted distance sensors.
+ * Uses atan2 math on the difference between readings to calculate heading offset,
+ * then applies cosine correction to get the true perpendicular distance to the wall.
+ *
+ * Works best when robot is within ~20 degrees of perpendicular to the wall.
+ * Designed for correcting small IMU drift (1-5 degrees), not full recovery.
+ *
+ * - left_sensor:      back-left distance sensor
+ * - right_sensor:     back-right distance sensor
+ * - sensor_spread:    horizontal distance between the two sensor faces (inches)
+ * - sensor_offset:    distance from robot tracking center to sensor face along back axis (inches)
+ * - wall_heading_deg: the heading the robot's BACK is facing when perpendicular to the wall
+ *                     e.g. back faces south wall = 180, north wall = 0, east = 90, west = 270
+ * - field_half_size:  half the field dimension (distance from center to wall, in inches)
+ *
+ * IMPORTANT: Both sensors must be mounted at the same depth on the robot (same offset).
+ * IMPORTANT: Robot should be roughly perpendicular to the wall when this is called.
+ */
+void resetPositionWithDualBackSensors(vex::distance& left_sensor, vex::distance& right_sensor,
+                                       double sensor_spread, double sensor_offset,
+                                       double wall_heading_deg, double field_half_size) {
+
+    double d_left  = left_sensor.objectDistance(inches);
+    double d_right = right_sensor.objectDistance(inches);
+
+    // Sanity check both readings
+    if (d_left  < 0 || d_left  > 200) { Brain.Screen.print("Invalid left sensor reading: %.2f",  d_left);  return; }
+    if (d_right < 0 || d_right > 200) { Brain.Screen.print("Invalid right sensor reading: %.2f", d_right); return; }
+
+    // --- HEADING CORRECTION ---
+    // Difference between readings divided by spread gives us the angle offset via atan2.
+    // right - left: positive = right side farther = robot rotated clockwise relative to wall.
+    // At small angles this is very accurate. cos(2°) = 0.9994 so correction is minimal when nearly straight.
+    double heading_offset_rad = atan2(d_right - d_left, sensor_spread);
+    double heading_offset_deg = heading_offset_rad * 180.0 / M_PI;
+
+    // Corrected heading = wall heading + angle offset
+    double corrected_heading = wall_heading_deg + heading_offset_deg;
+
+    // Normalize to 0-360
+    corrected_heading = fmod(corrected_heading + 360, 360);
+
+    // --- POSITION CORRECTION ---
+    // Average the two readings, then apply cosine correction to get the true
+    // perpendicular distance to the wall. Raw readings are longer than the true
+    // perpendicular distance when the robot is angled — cos shrinks them back.
+    // cos(0) = 1 so there is no effect when robot is perfectly straight.
+    double avg_dist       = (d_left + d_right) / 2.0;
+    double perp_dist      = avg_dist * cos(heading_offset_rad);
+    double wall_to_center = perp_dist + sensor_offset;
+
+    // Determine wall sign based on wall_heading_deg
+    double wh = fmod(wall_heading_deg + 360, 360);
+    double wallSign = 1.0;
+    bool resettingX = false;
+
+    if (wh >= 315 || wh < 45) {
+        // Back faces north wall — reset Y
+        resettingX = false;
+        wallSign = 1.0;
+    } else if (wh >= 45 && wh < 135) {
+        // Back faces east wall — reset X
+        resettingX = true;
+        wallSign = 1.0;
+    } else if (wh >= 135 && wh < 225) {
+        // Back faces south wall — reset Y
+        resettingX = false;
+        wallSign = -1.0;
+    } else {
+        // Back faces west wall — reset X
+        resettingX = true;
+        wallSign = -1.0;
+    }
+
+    double actualPos = wallSign * (field_half_size - wall_to_center);
+
+    // Apply position correction
+    if (resettingX) {
+        x_pos = actualPos;
+    } else {
+        y_pos = actualPos;
+    }
+
+    // Apply heading correction
+    // RW uses its own heading variable — replace this with however RW stores heading internally
+    // e.g. imu_heading = corrected_heading; or setHeading(corrected_heading);
+    // Check your RW source for the correct variable/function name
+    Inertial.setHeading(corrected_heading, degrees);
 }
 
 /*
  * resetPositionFront
  * Resets position using the front distance sensor.
  * Remember to only use these when perpendicular to the wall!
- * - sensor: Front distance sensor
- * - sensor_offset: Distance offset of the sensor from robot center (in inches)
- * - field_half_size: Half the field dimension (distance from center to wall, in inches)
  */
 void resetPositionFront() {
     resetPositionWithSensor(front_sensor, front_sensor_offset, 0.0, field_half_size);
@@ -1363,11 +1454,8 @@ void resetPositionFront() {
 
 /*
  * resetPositionBack
- * Resets position using the back distance sensor.
+ * Resets position using the back distance sensor (single sensor).
  * Remember to only use these when perpendicular to the wall!
- * - sensor: Back distance sensor 
- * - sensor_offset: Distance offset of the sensor from robot center (in inches)
- * - field_half_size: Half the field dimension (distance from center to wall, in inches)
  */
 void resetPositionBack() {
     resetPositionWithSensor(back_sensor, back_sensor_offset, 180.0, field_half_size);
@@ -1377,9 +1465,6 @@ void resetPositionBack() {
  * resetPositionLeft
  * Resets position using the left distance sensor.
  * Remember to only use these when perpendicular to the wall!
- * - sensor: Left distance sensor
- * - sensor_offset: Distance offset of the sensor from robot center (in inches)
- * - field_half_size: Half the field dimension (distance from center to wall, in inches)
  */
 void resetPositionLeft() {
     resetPositionWithSensor(left_sensor, left_sensor_offset, 270.0, field_half_size);
@@ -1389,12 +1474,64 @@ void resetPositionLeft() {
  * resetPositionRight
  * Resets position using the right distance sensor.
  * Remember to only use these when perpendicular to the wall!
- * - sensor: Right distance sensor
- * - sensor_offset: Distance offset of the sensor from robot center (in inches)
- * - field_half_size: Half the field dimension (distance from center to wall, in inches)
  */
 void resetPositionRight() {
     resetPositionWithSensor(right_sensor, right_sensor_offset, 90.0, field_half_size);
+}
+
+// ============================================================================
+// DRIVE UNTIL DISTANCE
+// ============================================================================
+/*
+ * driveUntilDistance
+ * Drives the robot in a direction until a distance sensor reads below a threshold.
+ * Robot stops immediately when threshold is reached or timeout expires.
+ *
+ * - sensor:        distance sensor facing the wall you're driving toward
+ * - threshold_in:  stop when sensor reads below this value (inches)
+ * - speed:         motor voltage 0-12 (default 6.0, half power)
+ * - forwards:      true = drive forward, false = drive backward
+ * - timeout_ms:    emergency stop time in milliseconds (default 3000)
+ *
+ * USAGE NOTES:
+ * - Lower speed = less overshoot after threshold triggers
+ * - Always set a reasonable timeout in case sensor malfunctions
+ * - Call a reset function immediately after for best accuracy
+ *
+ * EXAMPLE:
+ *   // drive backward toward south wall until 3" away
+ *   driveUntilDistance(back_left_sensor, 3.0, 5.0, false, 3000);
+ *   // now fire dual back reset
+ *   resetPositionWithDualBackSensors(...);
+ */
+void driveUntilDistance(vex::distance& sensor,
+                        double threshold_in,
+                        double speed = 6.0,
+                        bool forwards = true,
+                        int timeout_ms = 3000) {
+
+    double direction = forwards ? 1.0 : -1.0;
+    int elapsed = 0;
+
+    // start driving
+    driveChassis(direction * speed, direction * speed);
+
+    while (elapsed < timeout_ms) {
+        double reading = sensor.objectDistance(inches);
+
+        // ignore bad readings and keep driving
+        if (reading >= 0 && reading < 200) {
+            if (reading <= threshold_in) {
+                break; // threshold reached
+            }
+        }
+
+        wait(10, msec);
+        elapsed += 10;
+    }
+
+    // stop
+    driveChassis(0, 0);
 }
 
 // ============================================================================
