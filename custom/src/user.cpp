@@ -4,6 +4,7 @@
 #include "../custom/include/autonomous.h"
 #include "../custom/include/robot-config.h"
 #include <cmath>
+#include <string>
 
 // Modify autonomous, driver, or pre-auton code below
 
@@ -26,6 +27,7 @@ void runAutonomous() {
       rightAutonDescore();
       break;
     case 6:
+      leftAutonDescore();
       break;
     case 7:
       break;
@@ -218,8 +220,39 @@ void runDriver() {
   
   // Descore starts UP immediately
   descore_piston.set(true);
+
+  // ── Joystick curve selection ──
+  // Change the default here, or press DOWN arrow during driving to cycle.
+  // ACTIVE_CURVE is set in curves.cpp (default: CURVE_EXPONENTIAL)
+  bool curve_button_pressed = false;
+
+  // Tracking for warnings (don't spam alerts)
+  double last_temp_check = 0;
+  double last_battery_check = 0;
+  bool low_battery_warned = false;
   
   while (true) {
+    double now_ms = Brain.Timer.value() * 1000.0;
+
+    // ── Brain screen: intake current draw + active curve ──
+    Brain.Screen.setCursor(1, 1);
+    Brain.Screen.print("Intake mA: %.0f  |  Curve: %s    ",
+                       intake_motor.current() * 1000.0,
+                       getCurveName(ACTIVE_CURVE).c_str());
+
+    // ── Cycle curve with DOWN arrow ──
+    if (controller_1.ButtonDown.pressing()) {
+      if (!curve_button_pressed) {
+        ACTIVE_CURVE = nextCurve(ACTIVE_CURVE);
+        controller_1.Screen.setCursor(3, 1);
+        controller_1.Screen.print("Curve: %s       ",
+                                  getCurveName(ACTIVE_CURVE).c_str());
+        curve_button_pressed = true;
+      }
+    } else {
+      curve_button_pressed = false;
+    }
+
     // Read joystick values [-100, 100]
     ch3 = controller_1.Axis3.value(); // Left stick Y
     ch2 = controller_1.Axis2.value(); // Right stick Y
@@ -234,6 +267,52 @@ void runDriver() {
     updateOuttake();  // Must run before intake (controls mid-scoring blocking)
     updateIntake();
     updatePneumatics();
+
+    // === MOTOR TEMPERATURE MONITORING (every 2 seconds) ===
+    if (now_ms - last_temp_check > 2000) {
+      last_temp_check = now_ms;
+
+      double max_temp = 0;
+      std::string hot_motor = "";
+
+      // Check drive motors
+      double temp;
+      temp = left_chassis1.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "L-Drive"; }
+      temp = left_chassis2.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "L-Drive"; }
+      temp = left_chassis3.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "L-Drive"; }
+      temp = right_chassis1.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "R-Drive"; }
+      temp = right_chassis2.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "R-Drive"; }
+      temp = right_chassis3.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "R-Drive"; }
+      temp = intake_motor.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "Intake"; }
+      temp = outtake_motor.temperature(celsius);
+      if (temp > max_temp) { max_temp = temp; hot_motor = "Outtake"; }
+
+      // Warn at 50°C (before power reduction kicks in at 55°C)
+      if (max_temp >= 50) {
+        controller_1.Screen.setCursor(1, 1);
+        controller_1.Screen.print("HOT: %s %.0fC   ", hot_motor.c_str(), max_temp);
+      }
+    }
+
+    // === LOW BATTERY WARNING (≤10%) ===
+    if (now_ms - last_battery_check > 5000) {
+      last_battery_check = now_ms;
+
+      int battery_level = Brain.Battery.capacity();
+      if (battery_level <= 10 && !low_battery_warned) {
+        controller_1.rumble("---"); // Long rumble pattern
+        controller_1.Screen.setCursor(2, 1);
+        controller_1.Screen.print("LOW BATTERY: %d%%", battery_level);
+        low_battery_warned = true;
+      }
+    }
 
     wait(20, msec); 
   }

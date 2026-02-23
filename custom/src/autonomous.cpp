@@ -78,3 +78,12 @@ void rightAuton() {
 void rightAutonDescore() {
   // TODO: Write your right autonomous descore here
 }
+
+/*
+ * leftAutonDescore
+ * Left-side match autonomous with descore.
+ * TODO: Write using RW-Template motion functions
+ */
+void leftAutonDescore() {
+  // TODO: Write your left autonomous descore here
+}

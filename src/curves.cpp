@@ -1,5 +1,6 @@
 #include "curves.h"
 #include <cmath>
+#include <algorithm>
 
 // ============================================================================
 // DEFAULT SETTINGS — Change these or ACTIVE_CURVE to tune your drive feel
@@ -8,6 +9,7 @@ CurveType ACTIVE_CURVE    = CURVE_EXPONENTIAL;
 double CURVE_DEADBAND     = 3.0;
 double CURVE_MIN_OUTPUT   = 10.0;
 double CURVE_STRENGTH     = 1.05;
+double CURVE_PARAM        = 0.0;   // Extra param for EXPONENTIAL/PIECEWISE (0 = use defaults)
 
 // ============================================================================
 // INDIVIDUAL CURVE IMPLEMENTATIONS
@@ -48,6 +50,30 @@ static double curveSCurve(double input, double strength) {
   return output;
 }
 
+// Squared — x² curve, smooth low-end, full power at max
+// Same as Quadratic but named to match PROS convention
+static double curveSquared(double input) {
+  double sign = (input > 0) ? 1.0 : -1.0;
+  double ax = fabs(input) / 127.0;
+  return sign * ax * ax * 127.0;
+}
+
+// Piecewise Linear — two linear zones with a breakpoint
+// param sets the breakpoint (default 0.3 = 30% stick → 15% output)
+static double curvePiecewise(double input, double param) {
+  double sign = (input > 0) ? 1.0 : -1.0;
+  double ax = fabs(input) / 127.0;
+  double bp = (param > 0.01) ? param : 0.3;   // breakpoint
+  double low_out = 0.15;                        // output at breakpoint
+  double result;
+  if (ax <= bp) {
+    result = (low_out / bp) * ax;
+  } else {
+    result = low_out + ((1.0 - low_out) / (1.0 - bp)) * (ax - bp);
+  }
+  return sign * result * 127.0;
+}
+
 // ============================================================================
 // MAIN ENTRY POINT
 // Applies deadband, selected curve, and minimum output enforcement
@@ -74,6 +100,12 @@ double applyCurve(double input) {
     case CURVE_SCURVE:
       output = curveSCurve(input, CURVE_STRENGTH);
       break;
+    case CURVE_SQUARED:
+      output = curveSquared(input);
+      break;
+    case CURVE_PIECEWISE:
+      output = curvePiecewise(input, CURVE_PARAM);
+      break;
   }
 
   // Enforce minimum output so motors actually move past deadband
@@ -83,4 +115,24 @@ double applyCurve(double input) {
   }
 
   return output;
+}
+
+// Human-readable names for the brain screen / controller display
+std::string getCurveName(CurveType curve) {
+  switch (curve) {
+    case CURVE_LINEAR:      return "Linear";
+    case CURVE_EXPONENTIAL: return "Exponential";
+    case CURVE_CUBIC:       return "Cubic";
+    case CURVE_QUADRATIC:   return "Quadratic";
+    case CURVE_SCURVE:      return "S-Curve";
+    case CURVE_SQUARED:     return "Squared";
+    case CURVE_PIECEWISE:   return "Piecewise";
+    default:                return "Unknown";
+  }
+}
+
+// Cycle to the next curve (wraps back to LINEAR after PIECEWISE)
+CurveType nextCurve(CurveType current) {
+  int next = (static_cast<int>(current) + 1) % CURVE_TYPE_COUNT;
+  return static_cast<CurveType>(next);
 }
