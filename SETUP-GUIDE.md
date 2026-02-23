@@ -70,7 +70,7 @@ Set `auton_selected = 1` in `user.cpp` to run `tuningAuton()`.
 - [ ] Mount 1 distance sensor on the **left** side
 - [ ] Mount 1 distance sensor on the **right** side
 - [ ] Set sensor **ports** in `custom/src/robot-config.cpp` (lines 42-45)
-- [ ] Measure and set sensor **offsets** (lines 99-103):
+- [ ] Measure and set sensor **offsets** in `custom/src/robot-config.cpp` (lines 99-103):
 
 | Value                      | What to Measure                                                 |
 | -------------------------- | --------------------------------------------------------------- |
@@ -98,9 +98,9 @@ Select which runs by changing `auton_selected` in `custom/src/user.cpp`.
 
 ## Step 7: Tune Drive Curve
 
-The robot starts with `CURVE_EXPONENTIAL`. Press **DOWN** during driver control to cycle through all 7 curves:
+The robot starts with `CURVE_EXPONENTIAL`. Press **DOWN** during driver control to cycle through all 8 curves:
 
-Linear → Exponential → Cubic → Quadratic → S-Curve → Squared → Piecewise
+Linear → Exponential → Cubic → Quadratic → S-Curve → Squared → Piecewise → Plateau
 
 Pick whichever feels best to your driver. You can change the default in `custom/src/robot-config.cpp` or `src/curves.cpp`.
 
