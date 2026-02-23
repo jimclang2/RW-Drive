@@ -31,8 +31,12 @@ void turnToPoint(double x, double y, int dir, double time_limit_msec);
 void moveToPoint(double x, double y, int dir, double time_limit_msec, bool exit = true, double max_output = 12, bool overturn = false);
 void boomerang(double x, double y, int dir, double a, double dlead, double time_limit_msec, bool exit = true, double max_output = 12, bool overturn = false);
 
-void resetPositionWithSensor(vex::distance& sensor, double sensor_offset, double sensor_angle_deg, double field_half_size = 72);
-void resetPositionFront();
-void resetPositionBack();
-void resetPositionLeft();
-void resetPositionRight();
+// Distance sensor position resets
+void resetPositionAndHeadingBack();  // Dual back sensors: resets position AND heading
+void resetPositionLeft();            // Single left sensor: resets position with trig correction
+void resetPositionRight();           // Single right sensor: resets position with trig correction
+
+// Drive until a distance sensor reads below a threshold, then stop
+void driveUntilDistance(vex::distance& sensor, double threshold_in,
+                        double speed = 6.0, bool forwards = true, int timeout_ms = 3000);
+

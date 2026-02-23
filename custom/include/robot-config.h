@@ -18,11 +18,11 @@ extern inertial inertial_sensor;
 extern rotation horizontal_tracker;
 extern rotation vertical_tracker;
 
-// Distance sensors (not currently used — set correct ports in robot-config.cpp when ready)
-extern distance front_sensor;
-extern distance left_sensor;
-extern distance right_sensor;
-extern distance back_sensor;
+// Distance sensors (set correct ports in robot-config.cpp when ready)
+extern distance back_sensor_left;   // Left-side back sensor (for dual heading + position reset)
+extern distance back_sensor_right;  // Right-side back sensor (for dual heading + position reset)
+extern distance left_sensor;        // Single left sensor (position reset with trig correction)
+extern distance right_sensor;       // Single right sensor (position reset with trig correction)
 
 // Game-specific devices
 extern motor intake_motor;
@@ -45,11 +45,12 @@ extern double vertical_tracker_dist_from_center;
 extern double horizontal_tracker_diameter;
 extern double vertical_tracker_diameter;
 
-// Distance Reset setup (commented out — uncomment when ready to use)
-extern double front_sensor_offset;
-extern double left_sensor_offset;
-extern double right_sensor_offset;
-extern double back_sensor_offset;
+// Distance sensor offsets (distance from sensor to robot center, in inches)
+extern double back_sensor_left_offset;   // CHANGE: measure from left back sensor to robot center
+extern double back_sensor_right_offset;  // CHANGE: measure from right back sensor to robot center
+extern double back_sensor_spacing;       // CHANGE: center-to-center distance between the two back sensors (inches)
+extern double left_sensor_offset;        // CHANGE: measure from left sensor to robot center
+extern double right_sensor_offset;       // CHANGE: measure from right sensor to robot center
 
 // Advanced Tuning Parameters
 extern bool heading_correction;

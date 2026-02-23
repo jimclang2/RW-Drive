@@ -37,13 +37,12 @@ rotation vertical_tracker = rotation(PORT11, true);
 rotation horizontal_tracker = rotation(PORT10, true); // Not used, placeholder port
 
 // ============================================================================
-// DISTANCE SENSORS (not currently used — set correct ports when ready to use)
-// These must stay declared because the core motor-control code references them.
+// DISTANCE SENSORS — CHANGE PORTS to match your wiring
 // ============================================================================
-distance front_sensor = distance(PORT1);  // NOT USED YET — set correct port when ready
-distance left_sensor = distance(PORT2);   // NOT USED YET — set correct port when ready
-distance right_sensor = distance(PORT3);  // NOT USED YET — set correct port when ready
-distance back_sensor = distance(PORT4);   // NOT USED YET — set correct port when ready
+distance back_sensor_left = distance(PORT1);   // CHANGE: left-side back sensor port
+distance back_sensor_right = distance(PORT2);  // CHANGE: right-side back sensor port
+distance left_sensor = distance(PORT3);        // CHANGE: left side sensor port
+distance right_sensor = distance(PORT4);       // CHANGE: right side sensor port
 
 // ============================================================================
 // GAME-SPECIFIC DEVICES
@@ -94,14 +93,14 @@ double horizontal_tracker_diameter = 2.75; // Not used
 double vertical_tracker_diameter = 2.75;   // 2.75" omni tracking wheel
 
 // ============================================================================
-// DISTANCE RESET SETUP (commented out — configure when ready to use)
+// DISTANCE SENSOR CONFIGURATION — CHANGE these measurements for your robot
 // ============================================================================
-// All values are distance from sensor to robot center along the axis it faces (inches)
-// All values should be positive. Set unused ones to 0.
-double front_sensor_offset = 0.0;
-double left_sensor_offset = 0.0;
-double right_sensor_offset = 0.0;
-double back_sensor_offset = 0.0;
+// All offsets = distance from sensor to robot center (inches), must be positive
+double back_sensor_left_offset = 7.0;    // CHANGE: left back sensor to robot center
+double back_sensor_right_offset = 7.0;   // CHANGE: right back sensor to robot center
+double back_sensor_spacing = 10.0;       // CHANGE: center-to-center between the two back sensors (inches)
+double left_sensor_offset = 6.0;         // CHANGE: left sensor to robot center
+double right_sensor_offset = 6.0;        // CHANGE: right sensor to robot center
 
 // ============================================================================
 // ADVANCED TUNING (OPTIONAL)

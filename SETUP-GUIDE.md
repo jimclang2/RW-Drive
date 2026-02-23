@@ -1,21 +1,19 @@
-# RW-Template Setup Guide — Next Steps
+# RW-Template Setup Guide — What To Do Next
 
-Your robot hardware is fully configured. Here's what to do from here.
+Your robot hardware is configured and code is written. Here's everything you need to do, in order.
 
 ---
 
 ## Step 1: Build & Upload
 
 1. Open this project in VS Code with the **VEX Robotics Extension** installed
-2. Click the **Build** button in the VEX toolbar (or `Ctrl+Shift+B`)
-3. Fix any build errors if they come up
+2. Click the **Build** button (or `Ctrl+Shift+B`)
+3. Fix any build errors
 4. Connect your V5 Brain via USB and click **Upload**
 
 ---
 
 ## Step 2: Verify Motor Directions
-
-Before anything else, make sure all motors spin the right way:
 
 1. Run the robot in **driver control** mode
 2. Push both joysticks forward — the robot should drive **forward**
@@ -23,127 +21,88 @@ Before anything else, make sure all motors spin the right way:
 
 ---
 
-## Step 3: Tune PID
+## Step 3: Verify Subsystems
 
-PID values in `custom/src/robot-config.cpp` are marked with `// CHANGE: Tune these!`
+Test each button in driver control:
 
-### Distance PID (straight driving)
+| Button   | Action                                  |
+| -------- | --------------------------------------- |
+| **R1**   | Toggle intake forward                   |
+| **A**    | Toggle intake reverse                   |
+| **L1**   | Combo: intake forward + outtake reverse |
+| **X**    | Toggle mid-scoring mode                 |
+| **R2**   | Hold to retract Descore                 |
+| **L2**   | Toggle Unloader                         |
+| **DOWN** | Cycle drive curve type                  |
 
-1. Set `auton_selected = 1` in `custom/src/user.cpp` to run `tuningAuton()`
-2. Start with just `distance_kp` — increase until the robot overshoots, then back off
-3. Add `distance_kd` to dampen oscillation
-4. Add small `distance_ki` only if the robot consistently falls short
+Also verify:
 
-### Turn PID (turning in place)
-
-1. Same process — tune `turn_kp` first, then `turn_kd`
-2. Test multiple target angles (90°, 180°, 45°) to ensure consistency
-
-### Heading Correction PID
-
-- This keeps the robot driving straight — tune after distance and turn PID are solid
-- Usually needs less aggressive values than the turn PID
-
----
-
-## Step 4: Verify Subsystems
-
-Test each in **driver control** mode:
-
-| Button | Action                                            |
-| ------ | ------------------------------------------------- |
-| **R2** | Toggle intake forward                             |
-| **R1** | Toggle intake reverse                             |
-| **L1** | Toggle outtake forward                            |
-| **X**  | Toggle mid-scoring mode (unjam + reverse outtake) |
-| **A**  | Hold to retract Descore (releases on let go)      |
-| **L2** | Toggle Unloader                                   |
+- Brain screen shows intake current (mA) and active curve name
+- Controller shows curve name when cycling
+- Motor temperature warnings appear at ≥50°C
+- Low battery warning at ≤10%
 
 ---
 
-## Step 5: Write Autonomous Routines
+## Step 4: Tune PID
 
-Edit `custom/src/autonomous.cpp` — placeholder functions are ready for you:
+**See `PID-TUNING-GUIDE.md` for the complete guide.**
+
+Summary of what to tune in `custom/src/robot-config.cpp`:
+
+| #   | Controller         | Variables                                   | Tune For                                       |
+| --- | ------------------ | ------------------------------------------- | ---------------------------------------------- |
+| 1   | Distance PID       | `distance_kp`, `distance_ki`, `distance_kd` | Straight-line driving accuracy                 |
+| 2   | Turn PID           | `turn_kp`, `turn_ki`, `turn_kd`             | Turning accuracy at 30°, 90°, 180°, 270°, 360° |
+| 3   | Heading Correction | `heading_correction_kp/ki/kd`               | Driving straight without curving               |
+
+Set `auton_selected = 1` in `user.cpp` to run `tuningAuton()`.
+
+---
+
+## Step 5: Mount & Configure Distance Sensors
+
+**See `DISTANCE-SENSOR-GUIDE.md` for the complete guide.**
+
+### What You Need To Do:
+
+- [ ] Mount 2 distance sensors on the **back** of the robot (spaced apart horizontally)
+- [ ] Mount 1 distance sensor on the **left** side
+- [ ] Mount 1 distance sensor on the **right** side
+- [ ] Set sensor **ports** in `custom/src/robot-config.cpp` (lines 42-45)
+- [ ] Measure and set sensor **offsets** (lines 99-103):
+
+| Value                      | What to Measure                                                 |
+| -------------------------- | --------------------------------------------------------------- |
+| `back_sensor_left_offset`  | Distance from left back sensor to robot center (inches)         |
+| `back_sensor_right_offset` | Distance from right back sensor to robot center (inches)        |
+| `back_sensor_spacing`      | Center-to-center distance between the two back sensors (inches) |
+| `left_sensor_offset`       | Distance from left sensor to robot center (inches)              |
+| `right_sensor_offset`      | Distance from right sensor to robot center (inches)             |
+
+---
+
+## Step 6: Write Autonomous Routines
+
+**See `AUTONOMOUS-GUIDE.md` for the complete guide.**
+
+Edit `custom/src/autonomous.cpp` — placeholder functions are ready:
 
 - `skills_auton()`
-- `leftAuton()`
-- `rightAuton()`
-- `rightAutonDescore()`
+- `leftAuton()` / `leftAutonDescore()`
+- `rightAuton()` / `rightAutonDescore()`
 
-### Available Motion Functions
-
-```cpp
-// Drive straight (inches)
-driveTo(distance, time_limit_ms, exit, max_output);
-
-// Turn to absolute heading (degrees)
-turnToAngle(angle, time_limit_ms, exit, max_output);
-
-// Drive to a field coordinate
-moveToPoint(x, y, dir, time_limit_ms, exit, max_output, overturn);
-// dir: 1 = forward, -1 = backward
-
-// Smooth curved path to a pose (position + heading)
-boomerang(x, y, dir, angle, dlead, time_limit_ms, exit, max_output, overturn);
-
-// Circular arc path
-curveCircle(result_angle_deg, center_radius, time_limit_ms, exit, max_output);
-
-// Swing turn (one side stationary)
-swing(swing_angle, drive_direction, time_limit_ms, exit, max_output);
-```
-
-### Motor & Pneumatic Controls in Auton
-
-```cpp
-// Intake / Outtake
-intake_motor.spin(fwd, 12, volt);     // Full speed forward
-intake_motor.spin(reverse, 12, volt); // Full speed reverse
-intake_motor.stop(hold);              // Stop and hold
-
-outtake_motor.spin(fwd, 12, volt);
-outtake_motor.stop(hold);
-
-// Pneumatics
-descore_piston.set(true);    // or false
-unloader_piston.set(true);   // or false
-midscoring_piston.set(true); // or false
-
-// Direct chassis control
-driveChassis(left_volts, right_volts); // e.g. driveChassis(6, 6)
-stopChassis(hold);                     // or brake, coast
-
-// Delays
-wait(500, msec);
-
-// Set/reset position
-x_pos = 0; y_pos = 0;  // Reset odometry position
-correct_angle = 0;      // Reset heading reference
-```
-
-### Key Differences from LemLib
-
-| LemLib                                  | RW-Template                                                   |
-| --------------------------------------- | ------------------------------------------------------------- |
-| `chassis.moveToPoint(x, y, timeout)`    | `moveToPoint(x, y, dir, timeout)` — requires direction (1/-1) |
-| `chassis.turnToHeading(angle, timeout)` | `turnToAngle(angle, timeout)`                                 |
-| `chassis.setPose(x, y, heading)`        | Set `x_pos`, `y_pos`, `correct_angle` directly                |
-| `{.forwards = false}`                   | Use `dir = -1` parameter                                      |
-| `{.maxSpeed = 80}`                      | Use `max_output` parameter (in volts, max 12)                 |
-| `chassis.moveToPose(...)`               | `boomerang(x, y, dir, angle, dlead, timeout)`                 |
-| `pros::delay(ms)`                       | `wait(ms, msec)`                                              |
-
-Select your auton in `custom/src/user.cpp` by changing `auton_selected` in `runAutonomous()`.
+Select which runs by changing `auton_selected` in `custom/src/user.cpp`.
 
 ---
 
-## Step 6: Distance Sensors (Future)
+## Step 7: Tune Drive Curve
 
-When you're ready to add distance sensors:
+The robot starts with `CURVE_EXPONENTIAL`. Press **DOWN** during driver control to cycle through all 7 curves:
 
-1. Set the correct ports in `custom/src/robot-config.cpp` (lines 43-46, currently on placeholder ports 1-4)
-2. Set the sensor offsets (lines 101-104) — distance from each sensor to the robot's center (in inches)
-3. Call `resetPositionFront()`, `resetPositionBack()`, `resetPositionLeft()`, or `resetPositionRight()` in your autonomous routines
+Linear → Exponential → Cubic → Quadratic → S-Curve → Squared → Piecewise
+
+Pick whichever feels best to your driver. You can change the default in `custom/src/robot-config.cpp` or `src/curves.cpp`.
 
 ---
 
@@ -158,3 +117,13 @@ Only edit files in the `custom/` folder — core files will be overwritten on te
 | `custom/src/user.cpp`           | Driver control, pre-auton init, auton selection |
 | `custom/src/autonomous.cpp`     | Your autonomous routines                        |
 | `custom/include/autonomous.h`   | Autonomous function declarations                |
+
+---
+
+## Detailed Guides
+
+| Guide                      | What It Covers                                                      |
+| -------------------------- | ------------------------------------------------------------------- |
+| `PID-TUNING-GUIDE.md`      | Step-by-step PID tuning for all 3 controllers with validation tests |
+| `AUTONOMOUS-GUIDE.md`      | Full motion function reference, code examples, chaining, tips       |
+| `DISTANCE-SENSOR-GUIDE.md` | Sensor setup, measurements, reset functions, troubleshooting        |
