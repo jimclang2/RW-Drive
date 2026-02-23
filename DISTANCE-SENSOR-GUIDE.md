@@ -190,7 +190,7 @@ Wall ─────────────────────────
 angle_to_wall = atan2(d_right - d_left, spacing)
 ```
 
-If both sensors read the same distance, the angle is 0° (perfectly perpendicular). If the right sensor reads farther, the robot is rotated clockwise.
+If both sensors read the same distance, the angle is 0° (perfectly perpendicular). If the right sensor reads farther, the robot is rotated counter-clockwise.
 
 ### Trig Correction for Distance
 

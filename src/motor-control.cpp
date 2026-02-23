@@ -1357,9 +1357,12 @@ void resetPositionAndHeadingBack() {
     }
     
     // Reset heading using the wall angle
-    // The angle_to_wall_deg tells us how far off perpendicular we are
-    double corrected_heading = expected_perpendicular_heading + angle_to_wall_deg;
+    // CW rotation always moves the right rear sensor closer to the wall,
+    // so atan2(d_right - d_left, spacing) is negative for CW rotation.
+    // Subtracting the angle correctly converts this to global heading.
+    double corrected_heading = expected_perpendicular_heading - angle_to_wall_deg;
     correct_angle = corrected_heading;
+    inertial_sensor.setRotation(corrected_heading, degrees);
     
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Reset: pos=%.1f hdg=%.1f (wall_angle=%.1f)", 
@@ -1494,10 +1497,9 @@ void driveUntilDistance(vex::distance& sensor, double threshold_in,
     driveChassis(direction * speed, direction * speed);
 
     while (elapsed < timeout_ms) {
-        double reading = sensor.objectDistance(inches);
-
-        // Ignore bad readings, keep driving
-        if (reading >= 0 && reading < 200) {
+        // Only check distance if the sensor confirms an object is in range
+        if (sensor.isObjectDetected()) {
+            double reading = sensor.objectDistance(inches);
             if (reading <= threshold_in) {
                 break;
             }
