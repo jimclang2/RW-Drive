@@ -158,8 +158,9 @@ driveUntilDistance(left_sensor, 4.0, 5.0, true, 2000);
 1. **Reset early and often during skills** — odometry drifts more over 60 seconds
 2. **Always reset after long sequences** — after 4-5 moves, drift accumulates
 3. **Use `driveUntilDistance` before resetting** — gets you close to the wall at a controlled speed
-4. **Lower speed for `driveUntilDistance`** — 4-6V is ideal. Full speed = overshoot
-5. **Robot should be roughly perpendicular** to the wall (within ~20°). The dual sensor setup corrects for small angle errors, but large angles will be inaccurate
+4. **When combining back and side resets, ORDER MATTERS**: ALWAYS do `driveUntilDistance`, THEN `resetPositionAndHeadingBack()`, THEN your side reset (`resetPositionLeft()` or `Right()`). The side reset relies on the heading being perfect to calculate its own trig correction. If you do the side reset first, its calculation will be entirely wrong!
+5. **Lower speed for `driveUntilDistance`** — 4-6V is ideal. Full speed = overshoot
+6. **Robot should be roughly perpendicular** to the wall (within ~20°). The dual sensor setup corrects for small angle errors, but large angles will be inaccurate
 
 ---
 
@@ -180,10 +181,10 @@ driveUntilDistance(left_sensor, 4.0, 5.0, true, 2000);
 ### Dual Back Sensor Heading Calculation
 
 ```
-Wall ─────────────────────────
-       d_left ↕      ↕ d_right
-     [sensorL]    [sensorR]
      ├──── spacing ────┤
+     [sensorL]    [sensorR]
+       d_left ↕      ↕ d_right
+Wall ─────────────────────────
 ```
 
 ```
