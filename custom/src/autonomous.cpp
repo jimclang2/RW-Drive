@@ -356,11 +356,4 @@ void rightAuton() {
     moveToPoint(0, -30, -1, 9500);                     // backwards; long timeout
 }
 
-// ============================================================================
-// RIGHT AUTONOMOUS WITH DESCORE
-// ============================================================================
-void rightAutonDescore() {
-    // rightAuton() and rightAuton_descore() were identical in the original LemLib code.
-    // Calling rightAuton() here — add descore-specific changes below if needed.
-    rightAuton();
-}
+
