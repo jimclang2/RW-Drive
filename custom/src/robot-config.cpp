@@ -99,8 +99,8 @@ double vertical_tracker_diameter = 2.75;   // 2.75" omni tracking wheel
 double back_sensor_left_offset = 7.0;    // CHANGE: left back sensor to robot center
 double back_sensor_right_offset = 7.0;   // CHANGE: right back sensor to robot center
 double back_sensor_spacing = 10.0;       // CHANGE: center-to-center between the two back sensors (inches)
-double left_sensor_offset = 6.0;         // CHANGE: left sensor to robot center
-double right_sensor_offset = 6.0;        // CHANGE: right sensor to robot center
+double left_sensor_offset = 8.0;         // CHANGE: left sensor to robot center
+double right_sensor_offset = 8.0;        // CHANGE: right sensor to robot center
 
 // ============================================================================
 // ADVANCED TUNING (OPTIONAL)

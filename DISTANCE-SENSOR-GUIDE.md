@@ -42,7 +42,7 @@ You need to measure 5 values on your robot. **All measurements are in inches.**
 
 ### Back Sensor Offsets
 
-Measure the distance from each back sensor to the **center of the robot** (where the tracking point is):
+Measure the distance from each back sensor to the **center of the robot** (where the tracking point is). To be specific, it is the exact middle point between your left and right wheels (or tracking wheels), and the middle point between your front and back wheels.
 
 ```
            ← spacing →

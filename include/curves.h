@@ -11,7 +11,7 @@
 // ============================================================================
 
 enum CurveType {
-  CURVE_LINEAR,       // Direct 1:1 — no curve applied
+  CURVE_LINEAR,       // Direct 1:1 — no curve applied to this curve
   CURVE_EXPONENTIAL,  // Gentle low end, snappy high end (LemLib-style)
   CURVE_CUBIC,        // Popular in VEX — smooth and predictable
   CURVE_QUADRATIC,    // Softer than linear, less aggressive than cubic
@@ -30,7 +30,7 @@ constexpr int CURVE_TYPE_COUNT = 8;
 extern CurveType ACTIVE_CURVE;
 
 // Shared parameters (apply to all curves)
-extern double CURVE_DEADBAND;    // Joystick deadband (default: 3)
+extern double CURVE_DEADBAND;    // Joystick deadband (default: 3) - TEST THIS
 extern double CURVE_MIN_OUTPUT;  // Minimum motor output past deadband (default: 10)
 extern double CURVE_STRENGTH;    // Curve intensity — meaning varies per curve type:
                                  //   EXPONENTIAL: exponent steepness (default: 1.05)
