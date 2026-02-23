@@ -21,11 +21,18 @@ static double curveLinear(double input) {
   return input;
 }
 
-// Exponential — LemLib-style expo curve
-// strength controls how aggressive the curve is (1.0 = nearly linear, 5.0 = very aggressive)
+// Exponential — true exponential curve that starts at 0
+// strength controls how aggressive the curve is higher = more flat at start
 static double curveExponential(double input, double strength) {
   double sign = (input > 0) ? 1.0 : -1.0;
-  return exp(strength * (fabs(input) - 127.0) / 127.0) * sign * 127.0;
+  double x = fabs(input) / 127.0; // Normalize [0, 1]
+  
+  if (fabs(strength) < 0.001) return input; // Prevent divide by zero edge case
+  
+  // Standard exponential map spanning from (0,0) to (1,1)
+  double result = (exp(strength * x) - 1.0) / (exp(strength) - 1.0);
+  
+  return sign * result * 127.0;
 }
 
 // Cubic — most popular VEX curve
@@ -74,6 +81,37 @@ static double curvePiecewise(double input, double param) {
   return sign * result * 127.0;
 }
 
+// Plateau — wide flat zone in mid-high range for easy straight driving
+// Zone 1 (0-40%):   gentle cubic ramp       → output 0-62%
+// Zone 2 (40-82%):  wide plateau             → output 62-80%  (42% of travel → 18% of output)
+// Zone 3 (82-100%): steep ramp to full power → output 80-100%
+static double curvePlateau(double input) {
+  double sign = (input > 0) ? 1.0 : -1.0;
+  double ax = fabs(input) / 127.0;  // Normalize to [0, 1]
+  // Zone breakpoints (as fractions of stick travel)
+  double z1_end = 0.40;   // End of low-speed zone
+  double z2_end = 0.82;   // End of plateau zone
+  // Output breakpoints (as fractions of max output)
+  double o1 = 0.62;       // Output at end of zone 1
+  double o2 = 0.80;       // Output at end of zone 2 (plateau)
+  double result;
+  if (ax <= z1_end) {
+    // Zone 1: cubic ramp for fine low-speed control
+    double t = ax / z1_end;       // Normalize to [0, 1] within zone
+    result = o1 * (t * t * t);    // Cubic: very gentle at start, accelerates
+  } else if (ax <= z2_end) {
+    // Zone 2: flat plateau — 42% of stick travel maps to only 18% of output
+    // This makes it very easy to match left and right sticks
+    double t = (ax - z1_end) / (z2_end - z1_end);  // Normalize within zone
+    result = o1 + (o2 - o1) * t;                     // Linear interpolation
+  } else {
+    // Zone 3: steep ramp to full power
+    double t = (ax - z2_end) / (1.0 - z2_end);  // Normalize within zone
+    result = o2 + (1.0 - o2) * (t * t);          // Quadratic: accelerates to max
+  }
+  return sign * result * 127.0;
+}
+
 // ============================================================================
 // MAIN ENTRY POINT
 // Applies deadband, selected curve, and minimum output enforcement
@@ -106,6 +144,9 @@ double applyCurve(double input) {
     case CURVE_PIECEWISE:
       output = curvePiecewise(input, CURVE_PARAM);
       break;
+    case CURVE_PLATEAU:
+      output = curvePlateau(input);
+      break;
   }
 
   // Enforce minimum output so motors actually move past deadband
@@ -127,6 +168,7 @@ std::string getCurveName(CurveType curve) {
     case CURVE_SCURVE:      return "S-Curve";
     case CURVE_SQUARED:     return "Squared";
     case CURVE_PIECEWISE:   return "Piecewise";
+    case CURVE_PLATEAU:     return "Plateau";
     default:                return "Unknown";
   }
 }

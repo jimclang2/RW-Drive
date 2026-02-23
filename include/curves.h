@@ -17,11 +17,12 @@ enum CurveType {
   CURVE_QUADRATIC,    // Softer than linear, less aggressive than cubic
   CURVE_SCURVE,       // Sigmoid — smooth S-shape response
   CURVE_SQUARED,      // x² — smooth low-end, popular default
-  CURVE_PIECEWISE     // Two-zone linear — simple and predictable
+  CURVE_PIECEWISE,    // Two-zone linear — simple and predictable
+  CURVE_PLATEAU       // Wide mid-high plateau — easy to drive straight
 };
 
 // Total number of curve types (for cycling)
-constexpr int CURVE_TYPE_COUNT = 7;
+constexpr int CURVE_TYPE_COUNT = 8;
 
 // ========================================================
 // CHANGE THIS TO SELECT YOUR CURVE TYPE
