@@ -1327,7 +1327,7 @@ void resetPositionAndHeadingBack() {
         // Back faces top wall → reset Y (positive side)
         resettingX = false;
         wallSign = 1.0;
-        expected_perpendicular_heading = 180.0; // Robot heading when perfectly perpendicular (facing away from top wall)
+        expected_perpendicular_heading = 180.0;
     }
     else if (headingDeg > 45 && headingDeg <= 135) {
         // Back faces right wall → reset X (positive side)
@@ -1471,7 +1471,6 @@ void resetPositionRight() {
 // ============================================================================
 // DRIVE UNTIL DISTANCE
 // ============================================================================
-
 /*
  * driveUntilDistance
  * Drives the robot until a distance sensor reads below a threshold, then stops.
@@ -1511,6 +1510,7 @@ void driveUntilDistance(vex::distance& sensor, double threshold_in,
     stopChassis(vex::hold);
 }
 
+
 // ============================================================================
 // TEMPLATE NOTE
 // ============================================================================
@@ -1518,5 +1518,3 @@ void driveUntilDistance(vex::distance& sensor, double threshold_in,
 // All functions and variables use clear, consistent naming conventions.
 // Comments are concise and explain the intent of each section.
 // Teams can adapt PID values, drive base geometry, and logic as needed for their robot.
-
-
