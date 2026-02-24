@@ -356,4 +356,41 @@ void rightAuton() {
     moveToPoint(0, -30, -1, 9500);                     // backwards; long timeout
 }
 
+// ============================================================================
+// SHAKE BOT — unstick balls during unloading
+// ============================================================================
+/**
+ * Shakes the bot left and right (~5 degrees each direction) for the given
+ * duration in milliseconds. Useful for unsticking balls during unloading.
+ *
+ * Usage: shakeBot(2000);  // shake for 2 seconds while unloading
+ *
+ * Tuning:
+ *   SHAKE_VOLTAGE  (5.7v / ~60 out of 127) — increase for more aggressive
+ *                   shaking, decrease for gentler. Max is 12.0v.
+ *   SHAKE_INTERVAL (150ms) — decrease for faster/tighter wiggling,
+ *                   increase for slower/wider sweeps.
+ */
+void shakeBot(int durationMs) {
+    const double SHAKE_VOLTAGE  = 5.7;   // ~60/127 converted to volts
+    const int    SHAKE_INTERVAL = 150;   // ms per half-cycle (left or right)
 
+    vex::timer t;
+    t.reset();
+
+    while (t.time(msec) < durationMs) {
+        // Turn left: left motors backward, right motors forward
+        left_chassis.spin(reverse, SHAKE_VOLTAGE, volt);
+        right_chassis.spin(fwd, SHAKE_VOLTAGE, volt);
+        wait(SHAKE_INTERVAL, msec);
+
+        // Turn right: left motors forward, right motors backward
+        left_chassis.spin(fwd, SHAKE_VOLTAGE, volt);
+        right_chassis.spin(reverse, SHAKE_VOLTAGE, volt);
+        wait(SHAKE_INTERVAL, msec);
+    }
+
+    // Stop and settle
+    left_chassis.stop(brake);
+    right_chassis.stop(brake);
+}

@@ -231,6 +231,32 @@ stopChassis(coast);             // Stop and coast
 wait(500, msec);                // Wait 500ms
 ```
 
+### Shake Bot (Unstick Balls)
+
+```cpp
+shakeBot(2000);                 // Shake left/right for 2 seconds
+```
+
+Rapidly wiggles the robot left and right (~5 degrees each way) for the given duration in milliseconds. Useful for dislodging stuck balls during unloading.
+
+| Parameter    | Type | Description                         |
+| ------------ | ---- | ----------------------------------- |
+| `durationMs` | int  | How long to shake (in milliseconds) |
+
+**Tuning (constants inside the function):**
+| Constant | Default | Description |
+| ---------------- | ------- | ------------------------------------------------------------------ |
+| `SHAKE_VOLTAGE` | `5.7` | Motor voltage per shake. Increase for more aggressive (max `12.0`) |
+| `SHAKE_INTERVAL` | `150` | ms per half-cycle. Decrease = faster wiggle, increase = wider sweep |
+
+**Example — shake while unloading:**
+
+```cpp
+unloader_piston.set(true);
+shakeBot(2000);         // wiggle for 2 seconds to unstick balls
+unloader_piston.set(false);
+```
+
 ---
 
 ## Motion Chaining (exit = false)
